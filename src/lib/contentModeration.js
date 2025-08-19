@@ -116,5 +116,6 @@ The ${fileType} data is provided in base64 format. Be thorough in your analysis 
  * @returns {boolean}
  */
 export function isContentModerationEnabled() {
-  return !!process.env.GROQ_API_KEY;
+  // Moderation disabled by default
+  return false;
 } 
