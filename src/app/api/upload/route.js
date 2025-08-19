@@ -3,6 +3,7 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { existsSync } from "fs";
 import sharp from "sharp";
+import { put } from "@vercel/blob";
 import { moderateContent, isContentModerationEnabled } from "../../../lib/contentModeration";
 
 // Configure upload settings
@@ -49,11 +50,14 @@ export async function POST(request) {
             );
         }
 
-        // Create upload directory if it doesn't exist
+        // Create upload directory if it doesn't exist (local dev only)
         const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-        console.log('Upload directory:', uploadDir);
-        if (!existsSync(uploadDir)) {
-            await mkdir(uploadDir, { recursive: true });
+        const useBlobStorage = !!process.env.BLOB_READ_WRITE_TOKEN;
+        if (!useBlobStorage) {
+            console.log('Using local upload directory:', uploadDir);
+            if (!existsSync(uploadDir)) {
+                await mkdir(uploadDir, { recursive: true });
+            }
         }
 
         // Generate unique filename
@@ -155,15 +159,26 @@ export async function POST(request) {
             processedBuffer = Buffer.from(await file.arrayBuffer());
         }
 
-        // Save the processed file
-        const finalFilePath = path.join(uploadDir, finalFileName);
-        await writeFile(finalFilePath, processedBuffer);
+        // Save the processed file (Blob in prod, local in dev)
+        let fileUrl;
+        if (useBlobStorage) {
+            const blob = await put(`uploads/${finalFileName}`,
+                processedBuffer,
+                {
+                    access: 'public',
+                    token: process.env.BLOB_READ_WRITE_TOKEN,
+                    contentType: finalMimeType
+                }
+            );
+            fileUrl = blob.url;
+        } else {
+            const finalFilePath = path.join(uploadDir, finalFileName);
+            await writeFile(finalFilePath, processedBuffer);
+            fileUrl = `/uploads/${finalFileName}`;
+        }
 
         // Determine message type
         const messageType = isImage ? 'image' : 'video';
-
-        // Create file URL
-        const fileUrl = `/uploads/${finalFileName}`;
 
         // For now, we'll use the same URL for thumbnail (in a real app, you'd generate thumbnails)
         const thumbnailUrl = isImage ? fileUrl : null;
