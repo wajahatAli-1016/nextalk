@@ -6,6 +6,10 @@ import sharp from "sharp";
 import { put } from "@vercel/blob";
 import { moderateContent, isContentModerationEnabled } from "../../../lib/contentModeration";
 
+// Ensure this route runs on the Node.js runtime (sharp/fs require Node, not Edge)
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 // Configure upload settings
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB (reduced from 50MB)
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
